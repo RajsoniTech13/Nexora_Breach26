@@ -22,6 +22,7 @@
   "homepage": "https://github.com/Arman0604/Nexora#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.71.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

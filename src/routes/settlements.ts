@@ -5,6 +5,10 @@ import { AppError } from '../types/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireGroupMember } from '../middleware/groupAuth.js';
 import {
+  enqueueSettlementOptimization,
+  getCachedSettlementPlan,
+} from '../queue/settlementQueue.js';
+import {
   validateUUID,
   validatePositiveAmount,
   validateOptionalString,
@@ -42,6 +46,36 @@ function settlementToResponse(s: SettlementRow): Record<string, unknown> {
     createdAt: s.created_at,
   };
 }
+
+router.get('/optimize', requireAuth, requireGroupMember, async (req: Request, res: Response, next) => {
+  try {
+    const groupId = req.groupMembership!.groupId;
+    const cachedPlan = await getCachedSettlementPlan(groupId);
+
+    if (!cachedPlan) {
+      await enqueueSettlementOptimization(groupId);
+      res.json({
+        status: 'success',
+        data: {
+          plan: [],
+          cached: false,
+          message: 'Settlement optimization is queued. Retry shortly.',
+        },
+      });
+      return;
+    }
+
+    res.json({
+      status: 'success',
+      data: {
+        plan: cachedPlan,
+        cached: true,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.post('/', requireAuth, requireGroupMember, async (req: Request, res: Response, next) => {
   try {
@@ -218,6 +252,8 @@ router.patch('/:settlementId', requireAuth, requireGroupMember, async (req: Requ
          AND is_settled = false`,
         [existing.rows[0].from_user, groupId, existing.rows[0].to_user],
       );
+
+      await enqueueSettlementOptimization(groupId);
     }
 
     res.json({

@@ -162,6 +162,56 @@ router.get('/:groupId', requireAuth, requireGroupMember, async (req: Request, re
   }
 });
 
+router.get('/:groupId/activity', requireAuth, requireGroupMember, async (req: Request, res: Response, next) => {
+  try {
+    const groupId = req.groupMembership!.groupId;
+    const page = Math.max(1, parseInt(String(req.query['page'] ?? '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10) || 20));
+    const offset = (page - 1) * limit;
+
+    const countResult = await query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total FROM activity_log WHERE group_id = $1`,
+      [groupId],
+    );
+
+    const activityResult = await query(
+      `SELECT al.id, al.action_type, al.metadata, al.created_at,
+              u.id AS user_id, u.username, u.display_name, u.avatar_url
+       FROM activity_log al
+       LEFT JOIN users u ON u.id = al.user_id
+       WHERE al.group_id = $1
+       ORDER BY al.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [groupId, limit, offset],
+    );
+
+    const total = parseInt(countResult.rows[0]?.total ?? '0', 10);
+
+    res.json({
+      status: 'success',
+      data: {
+        activity: activityResult.rows.map((row) => ({
+          id: row.id,
+          actionType: row.action_type,
+          metadata: row.metadata,
+          createdAt: row.created_at,
+          user: row.user_id
+            ? {
+              id: row.user_id,
+              username: row.username,
+              displayName: row.display_name,
+              avatarUrl: row.avatar_url,
+            }
+            : null,
+        })),
+        pagination: { total, limit, offset },
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 router.patch('/:groupId', requireAuth, requireGroupMember, requireGroupAdmin, async (req: Request, res: Response, next) => {
   try {

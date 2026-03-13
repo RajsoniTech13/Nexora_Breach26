@@ -5,6 +5,7 @@ import compression from 'compression';
 import { errorHandler } from './middleware/errorHandler.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
+import usersRouter from './routes/users.js';
 import groupsRouter from './routes/groups.js';
 import membersRouter from './routes/members.js';
 import expensesRouter from './routes/expenses.js';
@@ -28,6 +29,7 @@ export function createApp(): express.Application {
 
   // Routes
   app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/users', usersRouter);
   app.use('/api/v1/groups', groupsRouter);
   app.use('/api/v1/groups/:groupId/members', membersRouter);
   app.use('/api/v1/groups/:groupId/expenses', expensesRouter);

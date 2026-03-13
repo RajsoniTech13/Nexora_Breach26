@@ -3,6 +3,10 @@ import { logger } from './lib/logger.js';
 import { createApp } from './app.js';
 import { pool, closePool } from './db/pool.js';
 import { connectRedis, disconnectRedis } from './redis/client.js';
+import {
+  startSettlementOptimizationWorker,
+  stopSettlementOptimizationWorker,
+} from './queue/settlementQueue.js';
 
 async function main(): Promise<void> {
   try {
@@ -14,6 +18,7 @@ async function main(): Promise<void> {
 
   try {
     await connectRedis();
+    startSettlementOptimizationWorker();
   } catch (err) {
     logger.warn({ err }, 'Redis not available — starting without Redis');
   }
@@ -35,6 +40,12 @@ async function main(): Promise<void> {
         await closePool();
       } catch (err) {
         logger.error({ err }, 'Error closing database pool');
+      }
+
+      try {
+        await stopSettlementOptimizationWorker();
+      } catch (err) {
+        logger.error({ err }, 'Error stopping settlement optimization worker');
       }
 
       try {
