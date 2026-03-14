@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireGroupMember } from '../middleware/groupAuth.js';
 import { validateUUID } from '../lib/validate.js';
 import { enqueueSettlementOptimization } from '../queue/settlementQueue.js';
+import { anchorSettlement, anchorLedgerEntry } from '../lib/blockchainClient.js';
 
 const router = Router({ mergeParams: true });
 
@@ -55,18 +56,23 @@ export async function completeSettlementLogic(
     throw new AppError('Settlement cannot be completed from current state', 400);
   }
 
+  let settledAtText = '';
+
   await withTransaction(async (client) => {
     // 1. Mark settlement complete
-    await txQuery(
+    const updatedSettlement = await txQuery<{ settled_at: string }>(
       client,
       `UPDATE settlements
        SET status = 'completed',
            payment_method = $1,
            payment_reference = $2,
            settled_at = NOW()
-       WHERE id = $3`,
+       WHERE id = $3
+       RETURNING settled_at::text AS settled_at`,
       [paymentMethod, paymentReference || null, settlementId]
     );
+
+    settledAtText = updatedSettlement.rows[0]?.settled_at ?? '';
 
     // 2. Clear out the corresponding payable and receivable ledger entries
     // For a settlement: 
@@ -138,6 +144,37 @@ export async function completeSettlementLogic(
 
   // Re-run settlement optimizer
   await enqueueSettlementOptimization(settlement.group_id);
+
+  // Anchor settlement on blockchain (fire-and-forget)
+  anchorSettlement({
+    id: settlement.id,
+    groupId: settlement.group_id,
+    fromUserId: settlement.from_user,
+    toUserId: settlement.to_user,
+    amount: settlement.amount,
+    currency: settlement.currency,
+    settledAt: settledAtText,
+  });
+
+  // Anchor settlement ledger entries on blockchain (fire-and-forget)
+  const ledgerRows = await query<{ id: string; group_id: string; account_id: string; reference_id: string; reference_type: string; amount: string; entry_type: string }>(
+    `SELECT le.id, la.group_id, le.account_id, le.reference_id, le.reference_type, le.amount::text, le.entry_type
+     FROM ledger_entries le
+     JOIN ledger_accounts la ON la.id = le.account_id
+     WHERE le.reference_id = $1 AND le.reference_type = 'settlement'`,
+    [settlementId],
+  );
+  for (const row of ledgerRows.rows) {
+    anchorLedgerEntry({
+      id: row.id,
+      groupId: row.group_id,
+      accountId: row.account_id,
+      referenceId: row.reference_id,
+      referenceType: row.reference_type,
+      amount: row.amount,
+      entryType: row.entry_type,
+    });
+  }
 }
 
 /**

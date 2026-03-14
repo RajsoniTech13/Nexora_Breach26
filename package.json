@@ -7,7 +7,8 @@
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/index.ts\"",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:process:blockchain": "node scripts/process-add-expense-ledger-blockchain.mjs"
   },
   "repository": {
     "type": "git",
