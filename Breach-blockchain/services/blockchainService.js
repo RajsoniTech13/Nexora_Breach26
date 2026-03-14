@@ -6,6 +6,9 @@ import { fileURLToPath } from "url";
 
 dotenv.config();
 
+const MOCK_MODE = String(process.env.BLOCKCHAIN_MOCK_MODE || '').toLowerCase() === 'true';
+const mockRecords = new Map();
+
 /*
 Resolve directory path
 */
@@ -27,28 +30,33 @@ const abi = JSON.parse(
 Blockchain provider
 */
 
-const provider = new ethers.JsonRpcProvider(
-  process.env.RPC_URL
-);
+let provider;
+let wallet;
+let contract;
 
 /*
 Wallet
 */
 
-const wallet = new ethers.Wallet(
-  process.env.PRIVATE_KEY,
-  provider
-);
+function getContract() {
+  if (MOCK_MODE) {
+    return null;
+  }
 
-/*
-Contract instance
-*/
+  if (contract) {
+    return contract;
+  }
 
-const contract = new ethers.Contract(
-  process.env.CONTRACT_ADDRESS,
-  abi,
-  wallet
-);
+  if (!process.env.RPC_URL || !process.env.PRIVATE_KEY || !process.env.CONTRACT_ADDRESS) {
+    throw new Error('RPC_URL, PRIVATE_KEY and CONTRACT_ADDRESS are required when BLOCKCHAIN_MOCK_MODE is disabled');
+  }
+
+  provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+  wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+  contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, abi, wallet);
+
+  return contract;
+}
 
 
 /*
@@ -60,7 +68,17 @@ export async function anchorExpense(expenseId, groupId, hash) {
 
   try {
 
-    const tx = await contract.anchorExpense(
+    if (MOCK_MODE) {
+      if (mockRecords.has(expenseId)) {
+        throw new Error('Already exists');
+      }
+      mockRecords.set(expenseId, { hash, groupId, recordType: 'EXPENSE' });
+      return `mock-expense-${expenseId}`;
+    }
+
+    const liveContract = getContract();
+
+    const tx = await liveContract.anchorExpense(
       expenseId,
       groupId,
       hash
@@ -88,7 +106,17 @@ export async function anchorSettlement(settlementId, groupId, hash) {
 
   try {
 
-    const tx = await contract.anchorSettlement(
+    if (MOCK_MODE) {
+      if (mockRecords.has(settlementId)) {
+        throw new Error('Already exists');
+      }
+      mockRecords.set(settlementId, { hash, groupId, recordType: 'SETTLEMENT' });
+      return `mock-settlement-${settlementId}`;
+    }
+
+    const liveContract = getContract();
+
+    const tx = await liveContract.anchorSettlement(
       settlementId,
       groupId,
       hash
@@ -112,13 +140,23 @@ ANCHOR LEDGER ENTRY
 Store ledger hash on blockchain
 */
 
-export async function anchorLedgerEntry(entryId, referenceId, hash) {
+export async function anchorLedgerEntry(entryId, groupId, hash) {
 
   try {
 
-    const tx = await contract.anchorLedgerEntry(
+    if (MOCK_MODE) {
+      if (mockRecords.has(entryId)) {
+        throw new Error('Already exists');
+      }
+      mockRecords.set(entryId, { hash, groupId, recordType: 'LEDGER' });
+      return `mock-ledger-${entryId}`;
+    }
+
+    const liveContract = getContract();
+
+    const tx = await liveContract.anchorLedgerEntry(
       entryId,
-      referenceId,
+      groupId,
       hash
     );
 
@@ -144,7 +182,14 @@ export async function verifyRecord(referenceId, hash) {
 
   try {
 
-    const valid = await contract.verifyRecord(
+    if (MOCK_MODE) {
+      const record = mockRecords.get(referenceId);
+      return Boolean(record && record.hash === hash);
+    }
+
+    const liveContract = getContract();
+
+    const valid = await liveContract.verifyRecord(
       referenceId,
       hash
     );

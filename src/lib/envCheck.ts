@@ -14,6 +14,7 @@ const ENV_REQUIREMENTS: EnvRequirement[] = [
   { key: 'STRIPE_SECRET_KEY', required: true, feature: 'payments' },
   { key: 'STRIPE_WEBHOOK_SECRET', required: true, feature: 'payments' },
   { key: 'GOOGLE_CLIENT_ID', required: false, feature: 'google-oauth' },
+  { key: 'BLOCKCHAIN_SERVICE_URL', required: false, feature: 'blockchain' },
 ];
 
 export function validateEnvironment(): void {

@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireGroupMember } from '../middleware/groupAuth.js';
 import { redis } from '../redis/client.js';
 import { enqueueSettlementOptimization } from '../queue/settlementQueue.js';
+import { anchorExpense, anchorLedgerEntry } from '../lib/blockchainClient.js';
 import {
   validateRequired,
   validatePositiveAmount,
@@ -468,6 +469,44 @@ router.post('/', requireAuth, requireGroupMember, async (req: Request, res: Resp
 
       await enqueueSettlementOptimization(groupId);
 
+      const expenseDateTextResult = await query<{ expense_date: string }>(
+        `SELECT expense_date::text AS expense_date FROM expenses WHERE id = $1`,
+        [expense.id],
+      );
+      const expenseDateText = expenseDateTextResult.rows[0]?.expense_date ?? String(expense.expense_date);
+
+      // Anchor expense on blockchain (fire-and-forget)
+      anchorExpense({
+        id: expense.id,
+        groupId,
+        paidByUserId: expense.paid_by,
+        amount: expense.amount,
+        currency: expense.currency,
+        category: expense.category ?? '',
+        description: expense.description,
+        expenseDate: expenseDateText,
+      });
+
+      // Anchor ledger entries on blockchain (fire-and-forget)
+      const ledgerRows = await query<{ id: string; group_id: string; account_id: string; reference_id: string; reference_type: string; amount: string; entry_type: string }>(
+        `SELECT le.id, la.group_id, le.account_id, le.reference_id, le.reference_type, le.amount::text, le.entry_type
+         FROM ledger_entries le
+         JOIN ledger_accounts la ON la.id = le.account_id
+         WHERE le.reference_id = $1 AND le.reference_type = 'expense'`,
+        [expense.id],
+      );
+      for (const row of ledgerRows.rows) {
+        anchorLedgerEntry({
+          id: row.id,
+          groupId: row.group_id,
+          accountId: row.account_id,
+          referenceId: row.reference_id,
+          referenceType: row.reference_type,
+          amount: row.amount,
+          entryType: row.entry_type,
+        });
+      }
+
       res.status(201).json({
         status: 'success',
         data: { expense: expenseToResponse(expense) },
@@ -696,6 +735,26 @@ router.put('/:expenseId', requireAuth, requireGroupMember, async (req: Request, 
     });
 
     await enqueueSettlementOptimization(groupId);
+
+    // Anchor updated ledger entries on blockchain (fire-and-forget)
+    const ledgerRows = await query<{ id: string; group_id: string; account_id: string; reference_id: string; reference_type: string; amount: string; entry_type: string }>(
+      `SELECT le.id, la.group_id, le.account_id, le.reference_id, le.reference_type, le.amount::text, le.entry_type
+       FROM ledger_entries le
+       JOIN ledger_accounts la ON la.id = le.account_id
+       WHERE le.reference_id = $1 AND le.reference_type = 'expense'`,
+      [expenseId],
+    );
+    for (const row of ledgerRows.rows) {
+      anchorLedgerEntry({
+        id: row.id,
+        groupId: row.group_id,
+        accountId: row.account_id,
+        referenceId: row.reference_id,
+        referenceType: row.reference_type,
+        amount: row.amount,
+        entryType: row.entry_type,
+      });
+    }
 
     res.json({
       status: 'success',
