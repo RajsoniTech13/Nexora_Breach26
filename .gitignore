@@ -3,3 +3,9 @@ dist/
 *.md
 .env
 .vscode/
+.env.example
+.DS_Store
+*.log
+coverage/
+.idea/
+*.iml

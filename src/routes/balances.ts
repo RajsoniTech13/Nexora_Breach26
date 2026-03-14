@@ -9,29 +9,30 @@ interface BalanceRow {
   user_id: string;
   username: string;
   display_name: string;
+  upi_id: string | null;
   avatar_url: string | null;
   payable: string;
   receivable: string;
 }
 
-interface DebtEdge {
-  from: { id: string; username: string; displayName: string };
-  to: { id: string; username: string; displayName: string };
+interface DebtEdge {//added upiID field here 
+  from: { id: string; username: string; displayName: string; upiId: string | null };
+  to: { id: string; username: string; displayName: string; upiId: string | null };
   amount: number;
 }
 
-function simplifyDebts(
-  balances: Map<string, { net: number; username: string; displayName: string; avatarUrl: string | null }>,
+function simplifyDebts(//added upiID field here
+  balances: Map<string, { net: number; username: string; displayName: string; upiId: string | null; avatarUrl: string | null }>,
 ): DebtEdge[] {
-  const positives: Array<{ id: string; amount: number; username: string; displayName: string }> = [];
-  const negatives: Array<{ id: string; amount: number; username: string; displayName: string }> = [];
+  const positives: Array<{ id: string; amount: number; username: string; displayName: string; upiId: string | null }> = [];
+  const negatives: Array<{ id: string; amount: number; username: string; displayName: string; upiId: string | null }> = [];
 
   for (const [id, info] of balances.entries()) {
     const net = Math.round(info.net * 100) / 100;
     if (net > 0.01) {
-      positives.push({ id, amount: net, username: info.username, displayName: info.displayName });
+      positives.push({ id, amount: net, username: info.username, displayName: info.displayName, upiId: info.upiId });
     } else if (net < -0.01) {
-      negatives.push({ id, amount: -net, username: info.username, displayName: info.displayName });
+      negatives.push({ id, amount: -net, username: info.username, displayName: info.displayName, upiId: info.upiId });
     }
   }
 
@@ -47,9 +48,9 @@ function simplifyDebts(
     const debtor = negatives[j];
     const transferAmount = Math.round(Math.min(creditor.amount, debtor.amount) * 100) / 100;
 
-    result.push({
-      from: { id: debtor.id, username: debtor.username, displayName: debtor.displayName },
-      to: { id: creditor.id, username: creditor.username, displayName: creditor.displayName },
+    result.push({//added UPI id here 
+      from: { id: debtor.id, username: debtor.username, displayName: debtor.displayName, upiId: debtor.upiId },
+      to: { id: creditor.id, username: creditor.username, displayName: creditor.displayName, upiId: creditor.upiId },
       amount: transferAmount,
     });
 
@@ -67,12 +68,13 @@ router.get('/', requireAuth, requireGroupMember, async (req: Request, res: Respo
   try {
     const groupId = req.groupMembership!.groupId;
 
-   
+
     const result = await query<BalanceRow>(
       `SELECT 
          gm.user_id,
          u.username,
          u.display_name,
+         u.upi_id,
          u.avatar_url,
          COALESCE(lp.current_balance, 0)::text AS payable,
          COALESCE(lr.current_balance, 0)::text AS receivable
@@ -84,7 +86,7 @@ router.get('/', requireAuth, requireGroupMember, async (req: Request, res: Respo
       [groupId],
     );
 
-    const balances = new Map<string, { net: number; username: string; displayName: string; avatarUrl: string | null }>();
+    const balances = new Map<string, { net: number; username: string; displayName: string; upiId: string | null; avatarUrl: string | null }>();
 
     for (const row of result.rows) {
       const receivable = parseFloat(row.receivable);
@@ -95,6 +97,7 @@ router.get('/', requireAuth, requireGroupMember, async (req: Request, res: Respo
         net,
         username: row.username,
         displayName: row.display_name,
+        upiId: row.upi_id,
         avatarUrl: row.avatar_url,
       });
     }

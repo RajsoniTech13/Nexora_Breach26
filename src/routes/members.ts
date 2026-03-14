@@ -18,6 +18,56 @@ interface MemberDetailRow {
   joined_at: string;
 }
 
+// Self-join via invite link — no group admin required, just auth
+router.post('/join', requireAuth, async (req: Request, res: Response, next) => {
+  try {
+    const groupId = req.params['groupId'];
+    const userId  = req.auth!.userId;
+
+    // Verify the group exists and is active
+    const groupResult = await query<{ id: string }>(
+      `SELECT id FROM groups WHERE id = $1 AND is_active = true`,
+      [groupId],
+    );
+    if (groupResult.rows.length === 0) {
+      throw new AppError('Group not found', 404);
+    }
+
+    // Check already a member
+    const existing = await query(
+      `SELECT id FROM group_members WHERE group_id = $1 AND user_id = $2`,
+      [groupId, userId],
+    );
+    if (existing.rows.length > 0) {
+      throw new AppError('You are already a member of this group', 409);
+    }
+
+    await withTransaction(async (client) => {
+      await txQuery(
+        client,
+        `INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'member')`,
+        [groupId, userId],
+      );
+      await txQuery(
+        client,
+        `INSERT INTO ledger_accounts (group_id, user_id, type)
+         VALUES ($1, $2, 'user_payable'), ($1, $2, 'user_receivable')`,
+        [groupId, userId],
+      );
+      await txQuery(
+        client,
+        `INSERT INTO activity_log (group_id, user_id, action_type, metadata)
+         VALUES ($1, $2, 'member_added', $3)`,
+        [groupId, userId, JSON.stringify({ addedBy: userId, role: 'member' })],
+      );
+    });
+
+    res.status(201).json({ status: 'success', message: 'Joined group successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/', requireAuth, requireGroupMember, requireGroupAdmin, async (req: Request, res: Response, next) => {
   try {
     const groupId = req.groupMembership!.groupId;
