@@ -15,6 +15,7 @@ import paymentRouter from './routes/payments.js';
 import webhookRouter from './routes/webhooks.js';
 import { optionalAuth } from './middleware/auth.js';
 import { userRateLimit } from './middleware/rateLimit.js';
+import receiptRoutes from './routes/receipt.routes.js';
 
 export function createApp(): express.Application {
   const app = express();
@@ -40,6 +41,7 @@ export function createApp(): express.Application {
   app.use('/api/v1/groups/:groupId/settlements', settlementsRouter);
   app.use('/api/v1/groups/:groupId/balances', balancesRouter);
   app.use('/api/v1/groups/:groupId/payments', paymentRouter);
+  app.use('/api/v1/receipts', receiptRoutes); 
   app.use(healthRouter);
   app.use(errorHandler);
 
