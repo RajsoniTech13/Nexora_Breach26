@@ -214,9 +214,9 @@ router.post('/mark-cash', requireAuth, requireGroupMember, async (req: Request, 
 
     // Allow from_user or to_user or admin to mark as cash
     if (
-        settlement.from_user !== userId &&
-        settlement.to_user !== userId &&
-        req.groupMembership!.role !== 'admin'
+      settlement.from_user !== userId &&
+      settlement.to_user !== userId &&
+      req.groupMembership!.role !== 'admin'
     ) {
       throw new AppError('Only participants or admin can mark settlement as cash', 403);
     }
@@ -232,4 +232,68 @@ router.post('/mark-cash', requireAuth, requireGroupMember, async (req: Request, 
   }
 });
 
+/**
+ * POST /api/v1/groups/:groupId/payments/checkout-session
+ * Creates a Stripe Checkout Session for card payment on an existing pending settlement
+ * this below section is added in development
+ */
+router.post('/checkout-session', requireAuth, requireGroupMember, async (req: Request, res: Response, next) => {
+  try {
+    const stripe = getStripeClient();
+    const groupId = req.groupMembership!.groupId;
+    const userId = req.auth!.userId;
+    const settlementId = validateUUID(req.body.settlementId, 'settlementId');
+
+    const result = await query<SettlementRow>(
+      `SELECT * FROM settlements WHERE id = $1 AND group_id = $2 AND status = 'pending'`,
+      [settlementId, groupId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError('Pending settlement not found', 404);
+    }
+
+    const settlement = result.rows[0];
+
+    if (settlement.from_user !== userId) {
+      throw new AppError('You can only pay your own settlements', 403);
+    }
+
+    const amountInPaisa = Math.round(parseFloat(settlement.amount) * 100);
+    const origin = req.headers.origin || req.headers.referer || 'http://localhost:5173';
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: settlement.currency.toLowerCase(),
+            unit_amount: amountInPaisa,
+            product_data: {
+              name: `Nexora Settlement`,
+              description: `Group payment settlement`,
+            },
+          },
+        },
+      ],
+      metadata: {
+        settlementId: settlement.id,
+        groupId: settlement.group_id,
+      },
+      success_url: `${origin}/?settlement_paid=${settlement.id}`,
+      cancel_url: `${origin}/`,
+    });
+
+    res.json({
+      status: 'success',
+      data: { url: session.url },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
+

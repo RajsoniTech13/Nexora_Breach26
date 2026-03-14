@@ -3,7 +3,7 @@ import { redis } from '../redis/client.js';
 import { AppError } from '../types/index.js';
 
 const WINDOW_SECONDS = 60;
-const MAX_REQUESTS = 100;
+const MAX_REQUESTS = 1000;//100 -> 1000 for development
 
 function getRateLimitIdentifier(req: Request): string {
   if (req.auth?.userId) {
