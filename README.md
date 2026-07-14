@@ -94,7 +94,7 @@ Nexora is an intelligent expense tracking platform that eliminates manual data e
 
 ---
 
-## ⚙️ Getting Started (Optional - Add if you want)
+## ⚙️ Getting Started
 
 ```bash
 # Clone the repository
@@ -108,3 +108,4 @@ npm install
 
 # Run the server
 npm start
+```
