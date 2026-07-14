@@ -101,7 +101,7 @@ npm run dev
 
 ## 🚀 Deployment Links
 
-- **Frontend App**: [demo.nexora.app](https://demo.nexora.app) (Vercel)
+- **Frontend App**: [demo.nexora.app]([https://demo.nexora.app](https://ft-peach.vercel.app/)) (Vercel)
 - **Backend API**: Render Cloud
 - **Blockchain**: Alchemy / Sepolia Testnet
 
@@ -121,4 +121,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 📩 Contact
 - 💻 **GitHub**: [RajsoniTech13](https://github.com/RajsoniTech13)
-- 📧 **Email**: team@nexora.app
+- 📧 **Email**: rajsonitechdev@gmail.com
