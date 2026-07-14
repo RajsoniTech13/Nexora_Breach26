@@ -101,7 +101,7 @@ npm run dev
 
 ## 🚀 Deployment Links
 
-- **Frontend App**: [demo.nexora.app]([https://demo.nexora.app](https://ft-peach.vercel.app/)) (Vercel)
+- **Frontend App**: [ft-peach.vercel.app](https://ft-peach.vercel.app/) (Vercel)
 - **Backend API**: Render Cloud
 - **Blockchain**: Alchemy / Sepolia Testnet
 
