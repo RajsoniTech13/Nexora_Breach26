@@ -10,15 +10,15 @@ The Nexora ecosystem operates on a standard 3-tier architecture, augmented by an
 
 ```mermaid
 graph TD
-    Client[Frontend (React/Vite)] -->|REST APIs| API[Backend API (Express)]
-    API -->|Reads/Writes| DB[(PostgreSQL)]
-    API -->|Caches/Rate Limits| Redis[(Redis)]
+    Client["Frontend (React/Vite)"] -->|REST APIs| API["Backend API (Express)"]
+    API -->|Reads/Writes| DB[("PostgreSQL")]
+    API -->|Caches/Rate Limits| Redis[("Redis")]
     
-    API -->|NLP Prompts| Groq[Llama 3.3 (Groq API)]
-    API -->|Image Data| Gemini[Gemini 2.5 Flash]
+    API -->|NLP Prompts| Groq["Llama 3.3 (Groq API)"]
+    API -->|Image Data| Gemini["Gemini 2.5 Flash"]
     
-    API -->|Hash anchoring| BlockchainService[Blockchain Express Service]
-    BlockchainService -->|Smart Contract| Sepolia[Ethereum Sepolia]
+    API -->|Hash anchoring| BlockchainService["Blockchain Express Service"]
+    BlockchainService -->|Smart Contract| Sepolia["Ethereum Sepolia"]
 ```
 
 ## 2. Core Components

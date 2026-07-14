@@ -26,14 +26,14 @@ The project is structured into three main independent services:
 ```
 Nexora_Breach26/
 │
-├── Nexora_frontend/       # React 18 + Vite + Tailwind UI (User Facing App)
+├── Nexora_Frontend/       # React 18 + Vite + Tailwind UI (User Facing App)
 ├── Breach_Backend/        # Node.js + Express API + DB/AI integrations
 ├── Breach-blockchain/     # Smart Contracts & Express anchoring service
 ├── README.md              # You are here!
 └── SYSTEM_DESIGN.md       # Detailed Architecture Documentation
 ```
 
-- [**Frontend Documentation**](./Nexora_frontend/README.md)
+- [**Frontend Documentation**](./Nexora_Frontend/README.md)
 - [**Backend Documentation**](./Breach_Backend/README.md)
 - [**Blockchain Documentation**](./Breach-blockchain/README.md)
 
@@ -41,7 +41,7 @@ Nexora_Breach26/
 
 ## 🛠️ Tech Stack
 
-### Frontend (`Nexora_frontend`)
+### Frontend (`Nexora_Frontend`)
 - **Framework**: React 18, Vite
 - **Styling**: Tailwind CSS, Shadcn/UI
 - **Auth**: Google OAuth
@@ -91,7 +91,7 @@ npm run dev
 
 ### 5. Run Frontend Client (Port 5173)
 ```bash
-cd ../Nexora_frontend
+cd ../Nexora_Frontend
 npm install
 # Create a .env file with VITE_API_URL=http://localhost:3000
 npm run dev
